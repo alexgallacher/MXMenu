@@ -8,6 +8,7 @@ struct MXMenuApp: App {
     @StateObject private var updater: Updater
 
     init() {
+        Snapshot.runIfRequested()
         let mouse = MouseController()
         let buttons = ButtonRemapper()
         mouse.gestureEnabled = buttons.gestureEnabled

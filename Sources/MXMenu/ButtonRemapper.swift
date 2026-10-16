@@ -15,6 +15,15 @@ enum MouseButton: String, CaseIterable, Identifiable {
         }
     }
 
+    var symbol: String {
+        switch self {
+        case .middle: return "circle.circle"
+        case .back: return "arrow.backward"
+        case .forward: return "arrow.forward"
+        case .gesture: return "hand.draw"
+        }
+    }
+
     /// CGEvent button number. The gesture button isn't a normal mouse button; it comes in over HID++.
     var cgButtonNumber: Int64? {
         switch self {
@@ -47,6 +56,24 @@ enum MouseAction: String, CaseIterable, Identifiable {
         case .copy: return "Copy"
         case .paste: return "Paste"
         case .undo: return "Undo"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .unchanged: return "computermouse"
+        case .missionControl: return "rectangle.3.group"
+        case .appExpose: return "rectangle.stack"
+        case .showDesktop: return "menubar.dock.rectangle"
+        case .previousSpace: return "chevron.left.2"
+        case .nextSpace: return "chevron.right.2"
+        case .back: return "arrow.uturn.backward"
+        case .forward: return "arrow.uturn.forward"
+        case .playPause: return "playpause"
+        case .screenshot: return "camera.viewfinder"
+        case .copy: return "doc.on.doc"
+        case .paste: return "doc.on.clipboard"
+        case .undo: return "arrow.counterclockwise"
         }
     }
 
@@ -110,6 +137,12 @@ final class ButtonRemapper: ObservableObject {
             actions[button] = MouseAction(rawValue: raw) ?? .unchanged
         }
         startIfNeeded(prompt: false)
+    }
+
+    /// Sample mappings for `--snapshot`; never touches permissions or event taps.
+    init(demo: Void) {
+        actions = [.middle: .missionControl, .back: .back, .forward: .forward, .gesture: .appExpose]
+        accessibilityGranted = true
     }
 
     var gestureEnabled: Bool { actions[.gesture, default: .unchanged] != .unchanged }

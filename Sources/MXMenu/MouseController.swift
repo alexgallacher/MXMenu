@@ -67,6 +67,22 @@ final class MouseController: ObservableObject {
         }
     }
 
+    /// Sample data for `--snapshot`; doesn't open any HID devices.
+    init(demoConnected: Bool) {
+        manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
+        guard demoConnected else {
+            state = .notFound
+            return
+        }
+        state = .connected
+        name = "MX Master 4"
+        connection = "Bluetooth"
+        battery = HIDPPDevice.Battery(percent: 82, charging: false)
+        dpi = 1600
+        wheel = HIDPPDevice.WheelSettings(freeSpin: false, autoDisengage: 30)
+        wheelReversed = false
+    }
+
     // MARK: Discovery
 
     private func attach(_ hid: IOHIDDevice) {

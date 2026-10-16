@@ -40,6 +40,17 @@ jobs:
           name: MXMenu
           path: build/MXMenu.zip
 
+      - name: Render screenshots
+        run: |
+          mkdir -p screenshots
+          build/MXMenu.app/Contents/MacOS/MXMenu --snapshot screenshots/connected.png
+          build/MXMenu.app/Contents/MacOS/MXMenu --snapshot screenshots/disconnected.png --disconnected
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: screenshots/
+
       - name: Publish release
         if: steps.release.outputs.version != ''
         env:
