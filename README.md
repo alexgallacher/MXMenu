@@ -50,7 +50,7 @@ To publish a new version, commit your changes and run:
 ./release.sh 0.2.0
 ```
 
-That tags the commit and pushes the tag. GitHub Actions builds the app with that version and creates the release with `MXMenu.zip` attached.
+That tags the commit and pushes the tag. GitHub Actions builds the app with that version and creates the release with `MXMenu.zip` attached. Bumping `CFBundleShortVersionString` in `Support/Info.plist` and pushing to `main` releases that version too.
 
 ## How it works
 
