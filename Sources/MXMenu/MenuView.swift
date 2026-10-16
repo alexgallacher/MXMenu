@@ -114,7 +114,7 @@ private struct PointerGroup: View {
             HStack {
                 GroupHeading("Pointer Speed")
                 Spacer()
-                Text("\(Int(ui.dpi).formatted()) DPI")
+                Text("\(Int((ui.dpi / 50).rounded() * 50).formatted()) DPI")
                     .font(.system(size: 11))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
@@ -123,8 +123,12 @@ private struct PointerGroup: View {
             }
             HStack(spacing: 8) {
                 Image(systemName: "tortoise.fill")
-                Slider(value: $ui.dpi, in: 200...8000, step: 50) { editing in
-                    if !editing { mouse.setDPI(Int(ui.dpi)) }
+                // No `step:` here: a stepped Slider draws a tick for every step.
+                Slider(value: $ui.dpi, in: 200...8000) { editing in
+                    if !editing {
+                        ui.dpi = (ui.dpi / 50).rounded() * 50
+                        mouse.setDPI(Int(ui.dpi))
+                    }
                 }
                 Image(systemName: "hare.fill")
             }
