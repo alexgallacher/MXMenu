@@ -127,6 +127,7 @@ private struct DeviceHeading: View {
                 .foregroundStyle(Theme.muted)
                 .fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.bottom, 2)
     }
 
