@@ -59,6 +59,9 @@ struct BatteryMouse: View {
                 .fill(Color.primary.opacity(0.35))
                 .frame(width: 5, height: 11)
                 .offset(y: -size.height * 0.30)
+            // Soft gloss so the shell reads as glossy plastic.
+            body.fill(LinearGradient(colors: [.white.opacity(0.28), .clear],
+                                     startPoint: .topLeading, endPoint: UnitPoint(x: 0.6, y: 0.5)))
             body.stroke(Color.primary.opacity(0.22), lineWidth: 1.2)
             if battery?.charging == true {
                 Image(systemName: "bolt.fill")
