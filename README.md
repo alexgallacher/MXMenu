@@ -63,7 +63,7 @@ That tags the commit and pushes the tag. GitHub Actions builds the app with that
 
 ## Design
 
-The panel follows the look of macOS's own Bluetooth and Battery menus: native controls, system colours, and grouped rows. The rules are in [docs/DESIGN.md](docs/DESIGN.md).
+The panel uses a light card layout with one blue accent, soft tinted tags and bordered rows, with a matching dark mode. The rules are in [docs/DESIGN.md](docs/DESIGN.md).
 
 ## How it works
 

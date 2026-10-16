@@ -27,28 +27,31 @@ struct MenuView: View {
     @StateObject private var ui = PanelState()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Header()
-            GroupDivider()
-            if mouse.state == .connected {
-                if mouse.dpi != nil {
-                    PointerGroup(ui: ui)
-                    GroupDivider()
+        VStack(spacing: 0) {
+            BatteryStrip()
+            VStack(alignment: .leading, spacing: 12) {
+                TopBar()
+                VStack(alignment: .leading, spacing: 10) {
+                    DeviceHeading()
+                    if mouse.state == .connected {
+                        if mouse.dpi != nil { PointerCard(ui: ui) }
+                        if mouse.wheel != nil || mouse.wheelReversed != nil { ScrollingCard(ui: ui) }
+                    } else {
+                        ConnectCard()
+                    }
+                    ButtonsCard()
+                    GeneralCard(ui: ui)
+                    Notes()
+                    FooterButtons()
                 }
-                if mouse.wheel != nil || mouse.wheelReversed != nil {
-                    ScrollingGroup(ui: ui)
-                    GroupDivider()
-                }
-            } else {
-                NotConnectedGroup(searching: mouse.state == .searching)
-                GroupDivider()
+                .padding(14)
+                .background(Theme.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Theme.border))
             }
-            ButtonsGroup()
-            GroupDivider()
-            AppGroup(ui: ui)
+            .padding(12)
         }
-        .padding(.vertical, 8)
-        .frame(width: 300)
+        .frame(width: 340)
+        .background(Theme.background)
         .onReceive(mouse.$dpi) { if let dpi = $0 { ui.dpi = Double(dpi) } }
         .onReceive(mouse.$wheel) { wheel in
             if let wheel, wheel.autoDisengage != HIDPPDevice.WheelSettings.smartShiftOff {
@@ -58,239 +61,286 @@ struct MenuView: View {
     }
 }
 
-// MARK: - Header
+// MARK: - Top
 
-private struct Header: View {
+/// Thin bar along the top edge showing the battery level.
+private struct BatteryStrip: View {
+    @EnvironmentObject private var mouse: MouseController
+
+    var body: some View {
+        GeometryReader { geo in
+            let battery = mouse.state == .connected ? mouse.battery : nil
+            ZStack(alignment: .leading) {
+                Rectangle().fill(Theme.track.opacity(0.6))
+                Rectangle()
+                    .fill(battery.map(Battery.color) ?? Theme.track)
+                    .frame(width: geo.size.width * CGFloat(battery?.percent ?? 0) / 100)
+            }
+        }
+        .frame(height: 3)
+        .animation(.easeOut(duration: 0.6), value: mouse.battery?.percent)
+    }
+}
+
+private struct TopBar: View {
+    @EnvironmentObject private var mouse: MouseController
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "computermouse.fill")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Theme.blue)
+            Text("MXMenu")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.blue)
+            Spacer()
+            if mouse.state == .connected, let battery = mouse.battery {
+                Chip(label: "Battery", value: "\(battery.percent)%", tone: Battery.tone(battery))
+            }
+        }
+    }
+}
+
+private struct DeviceHeading: View {
     @EnvironmentObject private var mouse: MouseController
 
     var body: some View {
         let connected = mouse.state == .connected
-        HStack(spacing: 9) {
-            Image(systemName: "computermouse.fill")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(connected ? Color.white : Color.secondary)
-                .frame(width: 26, height: 26)
-                .background(Circle().fill(connected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.quaternary)))
-            VStack(alignment: .leading, spacing: 0) {
-                Text(mouse.name).font(.system(size: 13, weight: .bold)).lineLimit(1)
-                Text(subtitle).font(.system(size: 11)).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 8)
-            if connected, let battery = mouse.battery {
-                HStack(spacing: 5) {
-                    Text("\(battery.percent)%")
-                        .font(.system(size: 13))
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                    Image(systemName: Battery.symbol(battery))
-                        .font(.system(size: 15))
-                        .foregroundStyle(Battery.tint(battery))
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Tag(text: connected ? mouse.connection : (mouse.state == .searching ? "Searching" : "Not connected"),
+                    tone: connected ? .blue : .red)
+                Spacer()
+                if connected, let battery = mouse.battery {
+                    if battery.charging {
+                        Tag(text: "Charging", tone: .green, symbol: "bolt.fill")
+                    } else if Battery.isLow(battery) {
+                        Tag(text: "Low battery", tone: .red, symbol: "asterisk")
+                    }
                 }
             }
+            Text(connected ? mouse.name : "Connect your MX Master")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(Theme.text)
+            Text(subtitle)
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.muted)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.horizontal, 14)
-        .padding(.top, 4)
         .padding(.bottom, 2)
     }
 
     private var subtitle: String {
         switch mouse.state {
         case .connected:
-            return mouse.battery?.charging == true ? "\(mouse.connection) · Charging" : mouse.connection
-        case .searching: return "Searching…"
-        case .notFound: return "Not Connected"
+            guard let battery = mouse.battery else { return "Changes apply straight to the mouse." }
+            return "Battery at \(battery.percent)%. Changes apply straight to the mouse."
+        case .searching:
+            return "Looking for your mouse over Bluetooth and Logi Bolt."
+        case .notFound:
+            return "Turn it on and pair it with this Mac, or plug in its Logi Bolt receiver."
         }
     }
 }
 
-// MARK: - Pointer speed
+// MARK: - Settings
 
-private struct PointerGroup: View {
+private struct PointerCard: View {
     @EnvironmentObject private var mouse: MouseController
     @ObservedObject var ui: PanelState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        RowCard {
             HStack {
-                GroupHeading("Pointer Speed")
+                RowTitle(title: "Pointer speed", symbol: "cursorarrow")
                 Spacer()
-                Text("\(Int((ui.dpi / 50).rounded() * 50).formatted()) DPI")
-                    .font(.system(size: 11))
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-                    .padding(.trailing, 14)
-                    .padding(.bottom, 2)
+                Tag(text: "\(Int(ui.dpi).formatted()) DPI")
             }
-            HStack(spacing: 8) {
-                Image(systemName: "tortoise.fill")
-                // No `step:` here: a stepped Slider draws a tick for every step.
-                Slider(value: $ui.dpi, in: 200...8000) { editing in
-                    if !editing {
-                        ui.dpi = (ui.dpi / 50).rounded() * 50
-                        mouse.setDPI(Int(ui.dpi))
-                    }
-                }
-                Image(systemName: "hare.fill")
-            }
-            .font(.system(size: 11))
-            .foregroundStyle(.secondary)
-            .controlSize(.small)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 2)
+            LineSlider(value: $ui.dpi, range: 200...8000, step: 50) { mouse.setDPI(Int($0)) }
         }
     }
 }
 
-// MARK: - Scrolling
-
-private struct ScrollingGroup: View {
+private struct ScrollingCard: View {
     @EnvironmentObject private var mouse: MouseController
     @ObservedObject var ui: PanelState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            GroupHeading("Scrolling")
+        RowCard {
             if let wheel = mouse.wheel {
                 let smartShiftOn = wheel.autoDisengage != HIDPPDevice.WheelSettings.smartShiftOff
-                SettingRow("SmartShift", symbol: "bolt.fill", isOn: smartShiftOn) {
-                    Toggle("SmartShift", isOn: Binding(
-                        get: { smartShiftOn },
-                        set: { on in
-                            let value = on ? UInt8(ui.threshold) : HIDPPDevice.WheelSettings.smartShiftOff
-                            mouse.setWheel(.init(freeSpin: wheel.freeSpin, autoDisengage: value))
-                        }))
-                }
+                Toggle(isOn: Binding(
+                    get: { wheel.freeSpin },
+                    set: { mouse.setWheel(.init(freeSpin: $0, autoDisengage: wheel.autoDisengage)) })
+                ) { RowTitle(title: "Free spin", symbol: "wind") }
+
+                Toggle(isOn: Binding(
+                    get: { smartShiftOn },
+                    set: { on in
+                        let value = on ? UInt8(ui.threshold) : HIDPPDevice.WheelSettings.smartShiftOff
+                        mouse.setWheel(.init(freeSpin: wheel.freeSpin, autoDisengage: value))
+                    })
+                ) { RowTitle(title: "SmartShift", symbol: "bolt") }
+
                 if smartShiftOn {
-                    HStack(spacing: 8) {
-                        Text("Sensitivity").font(.system(size: 11)).foregroundStyle(.secondary)
-                        Slider(value: $ui.threshold, in: 1...50) { editing in
-                            if !editing {
-                                mouse.setWheel(.init(freeSpin: wheel.freeSpin, autoDisengage: UInt8(ui.threshold)))
-                            }
+                    HStack(spacing: 10) {
+                        Text("Sensitivity").font(.system(size: 11)).foregroundStyle(Theme.muted)
+                        LineSlider(value: $ui.threshold, range: 1...50) {
+                            mouse.setWheel(.init(freeSpin: wheel.freeSpin, autoDisengage: UInt8($0)))
                         }
-                        .controlSize(.mini)
                     }
-                    .padding(.leading, 49)
-                    .padding(.trailing, 14)
-                    .padding(.bottom, 2)
-                }
-                SettingRow("Free Spin", symbol: "wind", isOn: wheel.freeSpin) {
-                    Toggle("Free Spin", isOn: Binding(
-                        get: { wheel.freeSpin },
-                        set: { mouse.setWheel(.init(freeSpin: $0, autoDisengage: wheel.autoDisengage)) }))
+                    .padding(.leading, 24)
                 }
             }
             if let reversed = mouse.wheelReversed {
-                SettingRow("Reverse Direction", symbol: "arrow.up.arrow.down", isOn: reversed) {
-                    Toggle("Reverse Direction", isOn: Binding(get: { reversed }, set: mouse.setWheelReversed))
+                Toggle(isOn: Binding(get: { reversed }, set: mouse.setWheelReversed)) {
+                    RowTitle(title: "Reverse direction", symbol: "arrow.up.arrow.down")
                 }
             }
         }
-        .toggleStyle(.switch)
-        .labelsHidden()
-        .controlSize(.mini)
+        .toggleStyle(BlueSwitchStyle())
     }
 }
 
-// MARK: - Not connected
-
-private struct NotConnectedGroup: View {
-    let searching: Bool
-
+private struct ConnectCard: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(searching ? "Looking for your MX Master…" : "Turn on your MX Master and pair it with this Mac, or plug in its Logi Bolt receiver.")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 14)
-                .padding(.bottom, 2)
-            MenuItemRow(title: "Bluetooth Settings…") {
+        HStack {
+            Spacer()
+            Button {
                 NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.BluetoothSettings")!)
+            } label: {
+                Label("Open Bluetooth Settings", systemImage: "plus.circle")
+                    .labelStyle(TrailingIconLabelStyle())
             }
+            .buttonStyle(SoftButtonStyle())
+            Spacer()
         }
     }
 }
 
-// MARK: - Buttons
-
-private struct ButtonsGroup: View {
+private struct ButtonsCard: View {
     @EnvironmentObject private var buttons: ButtonRemapper
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            GroupHeading("Buttons")
+        RowCard {
             ForEach(MouseButton.allCases) { button in
-                SettingRow(button.title, symbol: button.symbol, isOn: buttons.action(for: button) != .unchanged) {
+                HStack {
+                    RowTitle(title: button.title, symbol: button.symbol)
+                    Spacer(minLength: 8)
                     ActionPicker(button: button)
-                }
-            }
-            if !buttons.accessibilityGranted && buttons.actions.values.contains(where: { $0 != .unchanged }) {
-                MenuItemRow(title: "Allow Accessibility for Button Actions…") {
-                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
                 }
             }
         }
     }
 }
 
-// MARK: - App
-
-private struct AppGroup: View {
+private struct GeneralCard: View {
     @EnvironmentObject private var mouse: MouseController
     @EnvironmentObject private var updater: Updater
     @ObservedObject var ui: PanelState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            if let error = mouse.lastError {
-                Text(error)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.red)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 14)
-                    .padding(.bottom, 4)
+        RowCard {
+            Toggle(isOn: Binding(get: { ui.launchAtLogin }, set: setLaunchAtLogin)) {
+                RowTitle(title: "Launch at login", symbol: "power")
             }
-            SettingRow("Launch at Login") {
-                Toggle("Launch at Login", isOn: Binding(get: { ui.launchAtLogin }, set: setLaunchAtLogin))
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-                    .controlSize(.mini)
+            Toggle(isOn: Binding(get: { updater.autoInstall }, set: { updater.autoInstall = $0 })) {
+                RowTitle(title: "Install updates automatically", symbol: "arrow.down.circle")
             }
-            .padding(.bottom, 2)
-            UpdateRow()
-            MenuItemRow(title: "Quit MXMenu", shortcut: "⌘Q") { NSApp.terminate(nil) }
-                .keyboardShortcut("q")
         }
+        .toggleStyle(BlueSwitchStyle())
     }
 
     private func setLaunchAtLogin(_ on: Bool) {
         do {
             if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
         } catch {
-            mouse.lastError = "Launch at Login only works from the installed app."
+            mouse.lastError = "Launch at login only works from the installed app."
         }
         ui.launchAtLogin = SMAppService.mainApp.status == .enabled
     }
 }
 
-private struct UpdateRow: View {
+// MARK: - Bottom
+
+private struct Notes: View {
+    @EnvironmentObject private var mouse: MouseController
+    @EnvironmentObject private var buttons: ButtonRemapper
+
+    var body: some View {
+        VStack(spacing: 3) {
+            Text("Changes save automatically.")
+                .foregroundStyle(Theme.muted)
+            if !buttons.accessibilityGranted && buttons.actions.values.contains(where: { $0 != .unchanged }) {
+                Button("Allow Accessibility in System Settings so button actions work.") {
+                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.orange)
+            }
+            if let error = mouse.lastError {
+                Text(error).foregroundStyle(Theme.orange)
+            }
+        }
+        .font(.system(size: 11))
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
+        .padding(.top, 2)
+    }
+}
+
+private struct FooterButtons: View {
     @EnvironmentObject private var updater: Updater
 
     var body: some View {
+        HStack {
+            Button {
+                NSApp.terminate(nil)
+            } label: {
+                Label("Quit", systemImage: "arrow.left")
+            }
+            .buttonStyle(GhostButtonStyle())
+            .keyboardShortcut("q")
+            Spacer()
+            updateButton
+        }
+    }
+
+    @ViewBuilder private var updateButton: some View {
         switch updater.state {
         case .available(let version):
-            MenuItemRow(title: "Install MXMenu \(version)…") { Task { await updater.install() } }
+            Button { Task { await updater.install() } } label: {
+                Label("Install \(version)", systemImage: "checkmark").labelStyle(TrailingIconLabelStyle())
+            }
+            .buttonStyle(PrimaryButtonStyle())
         case .installing(let version):
-            SettingRow("Installing \(version)…") { ProgressView().controlSize(.mini) }
+            Button {} label: { Text("Installing \(version)…") }
+                .buttonStyle(PrimaryButtonStyle())
+                .disabled(true)
         case .checking:
-            SettingRow("Checking for Updates…") { ProgressView().controlSize(.mini) }
+            Button {} label: { Text("Checking…") }
+                .buttonStyle(SoftButtonStyle())
+                .disabled(true)
         case .upToDate:
-            MenuItemRow(title: "MXMenu \(updater.currentVersion) Is Up to Date") { Task { await updater.check() } }
-        case .failed:
-            MenuItemRow(title: "Couldn't Check for Updates. Try Again…") { Task { await updater.check() } }
-        case .idle:
-            MenuItemRow(title: "Check for Updates…") { Task { await updater.check() } }
+            Button { Task { await updater.check() } } label: {
+                Label("Up to date", systemImage: "checkmark").labelStyle(TrailingIconLabelStyle())
+            }
+            .buttonStyle(SoftButtonStyle())
+        case .idle, .failed:
+            Button { Task { await updater.check() } } label: {
+                Label("Check for updates", systemImage: "arrow.clockwise").labelStyle(TrailingIconLabelStyle())
+            }
+            .buttonStyle(SoftButtonStyle())
+        }
+    }
+}
+
+/// Title first, icon after it ("Next ✓", "Add new ⊕").
+private struct TrailingIconLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 5) {
+            configuration.title
+            configuration.icon.font(.system(size: 10, weight: .semibold))
         }
     }
 }
@@ -303,23 +353,23 @@ private struct ActionPicker: View {
         let action = buttons.action(for: button)
         HStack(spacing: 4) {
             Menu {
-                    ForEach(MouseAction.allCases) { option in
-                        Button {
-                            buttons.setAction(option, for: button)
-                        } label: {
-                            Label(option.title, systemImage: option.symbol)
-                        }
-                        if option == .unchanged { Divider() }
+                ForEach(MouseAction.allCases) { option in
+                    Button {
+                        buttons.setAction(option, for: button)
+                    } label: {
+                        Label(option.title, systemImage: option.symbol)
                     }
-                } label: {
-                    Text(action.title).font(.system(size: 13)).lineLimit(1)
+                    if option == .unchanged { Divider() }
                 }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .fixedSize()
-            Image(systemName: "chevron.up.chevron.down")
-                .font(.system(size: 8, weight: .semibold))
+            } label: {
+                Text(action.title).font(.system(size: 12)).lineLimit(1)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            Image(systemName: "chevron.down")
+                .font(.system(size: 9, weight: .semibold))
         }
-        .foregroundStyle(.secondary)
+        .foregroundStyle(Theme.muted)
     }
 }

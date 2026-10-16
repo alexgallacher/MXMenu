@@ -1,27 +1,24 @@
 # MXMenu design rules
 
-MXMenu should feel like one of macOS's own menu bar extras (Bluetooth, Battery, Sound), not like a web page in a popover. If a choice isn't covered here, copy what Apple's own menus do.
+MXMenu uses a calm, light "web app" look that Alex picked: one white card on an off-white page, a single blue accent, soft tinted tags, and thin-bordered rows. Every colour has a matching dark-mode value in `Theme.swift`. If a choice isn't covered here, keep it quiet: fewer colours, more whitespace.
 
 ## Menu bar item
 
-- A template SF Symbol (the system tints it for light, dark and Reduce Transparency), at the size of the system's own extras.
-- Battery percentage beside it in the system font, like the Battery extra's "Show Percentage".
+- A template SF Symbol (the system tints it for light, dark and Reduce Transparency), with the battery percentage beside it in the system font.
 - No colour in the menu bar.
 
 ## Panel
 
-- **Native controls only.** Mini switches (`.toggleStyle(.switch)`, `.controlSize(.mini)`), the standard `Slider`, and pop-up menus. They pick up the user's accent colour, keyboard focus and accessibility for free.
-- **System colours only.** Primary and secondary label colours, separators, and the accent colour on controls. No gradients, glows, coloured backgrounds or custom palettes. The one exception is the battery glyph, which goes red when low, as Apple's does.
-- **The menu material is the background.** Don't paint over it or nest cards inside it.
-- **Typography:** the system font at menu sizes. The header is 13 pt bold, rows are 13 pt regular, and section headings are 11 pt semibold in the secondary colour. No large display numbers.
-- **Structure:** a header row (device name, battery), then groups separated by hairline dividers, each with a small heading. It ends with menu-item rows ("Check for Updates…", "Quit") that highlight on hover like real menu items.
-- **Spacing:** about 300 pt wide, 14 pt side margins, rows about 22–28 pt tall. Insets line up on one leading edge.
-- **Icons:** SF Symbols in 26 pt circles, filled with the accent colour when "on", as in Control Center and the Bluetooth menu. They're used sparingly, only where they help recognition.
-- **Words:** title case for control labels, an ellipsis on items that open something else, and no explanatory sentences where a label will do.
+- **Page and card:** an off-white page (`#FAFAFA`) holding one white card with a 1 pt light-grey border (`#E5E7EB`), 12 pt corners and no shadow. Inside the card, settings are grouped into white rows with the same hairline border and 8 pt corners.
+- **One accent:** blue `#2563EB`. It's used for switches, sliders, the primary button, and the thin battery strip along the top edge.
+- **Tags:** small rounded labels in a pale tint with matching text. Blue is for facts (connection, DPI), green for good news (charging, healthy battery), and red for problems (not connected, low battery).
+- **Chips:** a bordered pill holding a dark label plus a tag, used for the battery in the top bar.
+- **Typography:** the system font. The heading is 18 pt bold in near-black (`#111827`). Row titles are 13 pt semibold, body text 12 pt grey (`#6B7280`), and notes 11 pt grey, with warnings in orange.
+- **Icons:** thin SF Symbols in grey beside row titles, plus a chevron after pop-up values.
+- **Buttons:** a ghost outlined button for the quiet action (Quit), a pale-blue button for secondary actions (Check for updates), and filled blue only for the one thing worth doing now (Install update).
+- **Words:** sentence case and short labels. A note at the bottom says changes save automatically.
 
 ## Sources
 
-- [Designing macOS menu bar extras](https://bjango.com/articles/designingmenubarextras/) (Bjango)
-- [What I learned building a native macOS menu bar app](https://dev.to/heocoi/what-i-learned-building-a-native-macos-menu-bar-app-4im6)
-- [Build a macOS menu bar utility in SwiftUI](https://nilcoalescing.com/blog/BuildAMacOSMenuBarUtilityInSwiftUI) (Nil Coalescing)
-- Apple's Human Interface Guidelines on menu bar extras, and Apple's own Bluetooth, Battery, Wi-Fi and Sound menus
+- The look is based on a reference screenshot Alex shared (a clean light web app).
+- Menu bar item rules: [Designing macOS menu bar extras](https://bjango.com/articles/designingmenubarextras/) (Bjango).
