@@ -51,6 +51,19 @@ jobs:
           name: screenshots
           path: screenshots/
 
+      # Keeps the latest renders on a `screenshots` branch so they can be viewed without downloading artifacts.
+      - name: Publish screenshots
+        if: github.event_name == 'push' && github.ref_type == 'branch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd screenshots
+          git init -q -b screenshots
+          git add .
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -qm "Screenshots of $GITHUB_REF_NAME at $GITHUB_SHA"
+          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" screenshots
+
       - name: Publish release
         if: steps.release.outputs.version != ''
         env:
