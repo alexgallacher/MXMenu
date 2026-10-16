@@ -2,7 +2,7 @@
 
 A small macOS menu-bar app for the Logitech MX Master 4 (and 3 / 3S). It talks to the mouse directly over Logitech's HID++ protocol, so it works without Logi Options+.
 
-<p align="center"><img src="docs/screenshot.png" alt="MXMenu panel showing an MX Master 4 on Bluetooth at 82% battery, pointer speed 1,600 DPI, ratchet scrolling with SmartShift, and button actions" width="340"></p>
+<p align="center"><img src="docs/screenshot.png" alt="MXMenu panel showing an MX Master 4 on Bluetooth at 82% battery, pointer speed 1,600 DPI, ratchet scrolling with SmartShift, and button actions" width="300"></p>
 
 The menu bar shows the battery percentage next to a mouse icon. From the panel you can see the battery level and charging state, set the pointer speed, switch the scroll wheel between ratchet and free spin, tune SmartShift, and reverse the wheel direction on the mouse only (so the trackpad keeps natural scrolling). The middle, back, forward and thumb gesture buttons can be remapped to Mission Control, App Exposé, Show Desktop, switching Desktops, Back / Forward, Play / Pause, an area screenshot, copy, paste or undo.
 
@@ -60,6 +60,10 @@ To publish a new version, commit your changes and run:
 ```
 
 That tags the commit and pushes the tag. GitHub Actions builds the app with that version and creates the release with `MXMenu.zip` attached. Bumping `CFBundleShortVersionString` in `Support/Info.plist` and pushing to `main` releases that version too.
+
+## Design
+
+The panel follows the look of macOS's own Bluetooth and Battery menus: native controls, system colours, and grouped rows. The rules are in [docs/DESIGN.md](docs/DESIGN.md).
 
 ## How it works
 
