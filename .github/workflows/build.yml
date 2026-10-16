@@ -44,6 +44,7 @@ jobs:
         run: |
           mkdir -p screenshots
           build/MXMenu.app/Contents/MacOS/MXMenu --snapshot screenshots/connected.png
+          build/MXMenu.app/Contents/MacOS/MXMenu --snapshot screenshots/connected-light.png --light
           build/MXMenu.app/Contents/MacOS/MXMenu --snapshot screenshots/disconnected.png --disconnected
 
       - uses: actions/upload-artifact@v4

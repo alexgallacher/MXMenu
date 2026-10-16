@@ -40,16 +40,3 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
     }
 }
-
-struct MenuBarLabel: View {
-    @ObservedObject var mouse: MouseController
-
-    var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: mouse.state == .connected ? "computermouse.fill" : "computermouse")
-            if let battery = mouse.battery {
-                Text("\(battery.percent)%")
-            }
-        }
-    }
-}
