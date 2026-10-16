@@ -8,10 +8,10 @@ enum MouseButton: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .middle: return "Middle click"
-        case .back: return "Back button"
-        case .forward: return "Forward button"
-        case .gesture: return "Gesture button"
+        case .middle: return "Middle"
+        case .back: return "Back"
+        case .forward: return "Forward"
+        case .gesture: return "Gesture"
         }
     }
 
