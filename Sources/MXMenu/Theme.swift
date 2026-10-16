@@ -1,159 +1,114 @@
 import SwiftUI
 
-// Controls here are drawn in plain SwiftUI (no NSView-backed Toggle/Slider/Picker)
-// so they render in `--snapshot` images. Fills use the primary colour at low
-// opacity so the panel works on the menu's material in light and dark mode.
+// See docs/DESIGN.md: native controls and system colours, laid out like
+// macOS's own Bluetooth and Battery menus.
 
-enum Theme {
-    static let fill = Color.primary.opacity(0.07)
-    static let fillStrong = Color.primary.opacity(0.12)
-    static let separator = Color.primary.opacity(0.09)
-    static let accentGradient = LinearGradient(
-        colors: [Color(red: 0.30, green: 0.58, blue: 1.0), Color(red: 0.56, green: 0.40, blue: 1.0)],
-        startPoint: .topLeading, endPoint: .bottomTrailing)
+enum Battery {
+    static func symbol(_ battery: HIDPPDevice.Battery) -> String {
+        if battery.charging { return "battery.100percent.bolt" }
+        switch battery.percent {
+        case 88...: return "battery.100percent"
+        case 63..<88: return "battery.75percent"
+        case 38..<63: return "battery.50percent"
+        case 13..<38: return "battery.25percent"
+        default: return "battery.0percent"
+        }
+    }
 
-    static func batteryColors(_ battery: HIDPPDevice.Battery?) -> [Color] {
-        guard let battery else { return [.gray, .gray] }
-        if battery.charging || battery.percent > 30 {
-            return [Color(red: 0.20, green: 0.84, blue: 0.62), Color(red: 0.42, green: 0.90, blue: 0.36)]
-        }
-        if battery.percent > 15 {
-            return [Color(red: 1.0, green: 0.62, blue: 0.20), Color(red: 1.0, green: 0.80, blue: 0.30)]
-        }
-        return [Color(red: 1.0, green: 0.30, blue: 0.35), Color(red: 1.0, green: 0.50, blue: 0.40)]
+    /// Red when low, like the system Battery menu; otherwise the normal label colour.
+    static func tint(_ battery: HIDPPDevice.Battery) -> Color {
+        !battery.charging && battery.percent <= 20 ? .red : .primary
     }
 }
 
-struct PressableStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.95 : 1)
-            .animation(.spring(response: 0.25, dampingFraction: 0.6), value: configuration.isPressed)
-    }
-}
+/// Small heading above a group, as in the system menus.
+struct GroupHeading: View {
+    let title: String
 
-/// An MX-style mouse silhouette that fills up with the battery level.
-struct BatteryMouse: View {
-    let battery: HIDPPDevice.Battery?
-    var size = CGSize(width: 46, height: 70)
+    init(_ title: String) { self.title = title }
 
     var body: some View {
-        let colors = Theme.batteryColors(battery)
-        let level = CGFloat(battery?.percent ?? 0) / 100
-        let body = RoundedRectangle(cornerRadius: size.width * 0.48, style: .continuous)
-        ZStack {
-            body.fill(Theme.fill)
-            // Liquid fill, clipped to the mouse shape.
-            VStack(spacing: 0) {
-                Spacer(minLength: 0)
-                LinearGradient(colors: colors, startPoint: .bottom, endPoint: .top)
-                    .frame(height: size.height * level)
-            }
-            .clipShape(body)
-            // Button split and scroll wheel.
-            Rectangle()
-                .fill(Color.primary.opacity(0.18))
-                .frame(width: 1, height: size.height * 0.30)
-                .offset(y: -size.height * 0.33)
-            Capsule()
-                .fill(Color.primary.opacity(0.35))
-                .frame(width: 5, height: 11)
-                .offset(y: -size.height * 0.30)
-            // Soft gloss so the shell reads as glossy plastic.
-            body.fill(LinearGradient(colors: [.white.opacity(0.28), .clear],
-                                     startPoint: .topLeading, endPoint: UnitPoint(x: 0.6, y: 0.5)))
-            body.stroke(Color.primary.opacity(0.22), lineWidth: 1.2)
-            if battery?.charging == true {
-                Image(systemName: "bolt.fill")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.white)
-                    .shadow(color: .black.opacity(0.3), radius: 2)
-                    .offset(y: size.height * 0.12)
-            }
-        }
-        .frame(width: size.width, height: size.height)
-        .shadow(color: colors[0].opacity(battery == nil ? 0 : 0.45), radius: 12, y: 2)
-        .animation(.spring(response: 0.8, dampingFraction: 0.8), value: battery?.percent)
+        Text(title)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 14)
+            .padding(.bottom, 2)
     }
 }
 
-/// A Control Center-style square: round icon, title and current value. Tapping toggles it.
-struct Tile: View {
-    let symbol: String
+struct GroupDivider: View {
+    var body: some View {
+        Divider().padding(.horizontal, 14).padding(.vertical, 5)
+    }
+}
+
+/// Tracks the pointer for one row (an ObservableObject rather than `@State`; see MenuView.swift).
+final class HoverState: ObservableObject {
+    @Published var isHovering = false
+}
+
+/// A clickable row that highlights on hover like a real menu item.
+struct MenuItemRow: View {
     let title: String
-    let value: String
-    let isOn: Bool
+    var shortcut: String?
     let action: () -> Void
+    @StateObject private var hover = HoverState()
 
     var body: some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 8) {
-                Image(systemName: symbol)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(isOn ? Color.white : Color.primary.opacity(0.75))
-                    .frame(width: 30, height: 30)
-                    .background {
-                        Circle().fill(isOn ? AnyShapeStyle(Theme.accentGradient) : AnyShapeStyle(Theme.fillStrong))
-                    }
-                    .shadow(color: Color(red: 0.4, green: 0.5, blue: 1.0).opacity(isOn ? 0.45 : 0), radius: 6, y: 2)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title).font(.system(size: 12, weight: .semibold)).lineLimit(1)
-                    Text(value).font(.system(size: 10.5)).foregroundStyle(.secondary).lineLimit(1)
+            HStack {
+                Text(title)
+                Spacer()
+                if let shortcut {
+                    Text(shortcut).foregroundStyle(hover.isHovering ? Color.white.opacity(0.8) : Color.secondary)
                 }
             }
+            .font(.system(size: 13))
+            .foregroundStyle(hover.isHovering ? Color.white : Color.primary)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 3)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(10)
-            .background(Theme.fill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background {
+                if hover.isHovering {
+                    RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Color.accentColor)
+                }
+            }
+            .contentShape(Rectangle())
         }
-        .buttonStyle(PressableStyle())
-        .animation(.snappy(duration: 0.25), value: isOn)
+        .buttonStyle(.plain)
+        .padding(.horizontal, 5)
+        .onHover { hover.isHovering = $0 }
     }
 }
 
-/// A chunky Control Center-style slider with an icon inside the track.
-/// `onCommit` fires when the drag ends.
-struct PillSlider: View {
-    @Binding var value: Double
-    let range: ClosedRange<Double>
-    var step: Double = 1
-    let symbol: String
-    var onCommit: (Double) -> Void = { _ in }
+/// A settings row: optional round icon, a label, and a native control on the right.
+struct SettingRow<Control: View>: View {
+    var symbol: String?
+    var isOn = false
+    let title: String
+    let control: Control
 
-    private let height: CGFloat = 28
-
-    var body: some View {
-        GeometryReader { geo in
-            let width = geo.size.width
-            let fraction = CGFloat((value - range.lowerBound) / (range.upperBound - range.lowerBound))
-            ZStack(alignment: .leading) {
-                Capsule().fill(Theme.fill)
-                Capsule()
-                    .fill(Theme.accentGradient)
-                    .frame(width: height + fraction * (width - height))
-                Circle()
-                    .fill(.white)
-                    .frame(width: height - 6, height: height - 6)
-                    .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
-                    .offset(x: 3 + fraction * (width - height))
-                Image(systemName: symbol)
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(Color(red: 0.36, green: 0.50, blue: 1.0))
-                    .frame(width: height - 6)
-                    .offset(x: 3 + fraction * (width - height))
-            }
-            .contentShape(Capsule())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { drag in value = snapped(drag.location.x, width: width) }
-                    .onEnded { _ in onCommit(value) })
-        }
-        .frame(height: height)
+    init(_ title: String, symbol: String? = nil, isOn: Bool = false, @ViewBuilder control: () -> Control) {
+        self.title = title
+        self.symbol = symbol
+        self.isOn = isOn
+        self.control = control()
     }
 
-    private func snapped(_ x: CGFloat, width: CGFloat) -> Double {
-        let fraction = Double(min(max((x - height / 2) / max(width - height, 1), 0), 1))
-        let raw = range.lowerBound + fraction * (range.upperBound - range.lowerBound)
-        return min(max((raw / step).rounded() * step, range.lowerBound), range.upperBound)
+    var body: some View {
+        HStack(spacing: 9) {
+            if let symbol {
+                Image(systemName: symbol)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(isOn ? Color.white : Color.primary)
+                    .frame(width: 26, height: 26)
+                    .background(Circle().fill(isOn ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.quaternary)))
+            }
+            Text(title).font(.system(size: 13))
+            Spacer(minLength: 8)
+            control
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 3)
     }
 }
