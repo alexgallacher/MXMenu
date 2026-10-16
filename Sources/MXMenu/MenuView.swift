@@ -153,7 +153,7 @@ private struct WheelCard: View {
 
     var body: some View {
         if mouse.wheel != nil || mouse.wheelReversed != nil {
-            Card("Scroll wheel", symbol: "scroll") {
+            Card("Scroll wheel", symbol: "arrow.up.and.down") {
                 if let wheel = mouse.wheel {
                     SegmentedControl(
                         options: [SegmentOption(value: false, title: "Ratchet", symbol: "dial.medium"),
@@ -207,7 +207,7 @@ private struct ButtonsCard: View {
     @EnvironmentObject private var buttons: ButtonRemapper
 
     var body: some View {
-        Card("Buttons", symbol: "button.programmable") {
+        Card("Buttons", symbol: "cursorarrow.click.2") {
             VStack(spacing: 8) {
                 ForEach(MouseButton.allCases) { button in
                     HStack(spacing: 10) {
@@ -255,7 +255,7 @@ private struct ActionPicker: View {
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(action == .unchanged ? Theme.tertiary : Theme.accent)
             if Snapshot.isActive {
-                Text(action.title).font(.system(size: 11, weight: .medium))
+                Text(action.title).font(.system(size: 11, weight: .medium)).lineLimit(1).fixedSize()
             } else {
                 Menu {
                     ForEach(MouseAction.allCases) { option in
@@ -267,7 +267,7 @@ private struct ActionPicker: View {
                         if option == .unchanged { Divider() }
                     }
                 } label: {
-                    Text(action.title).font(.system(size: 11, weight: .medium))
+                    Text(action.title).font(.system(size: 11, weight: .medium)).lineLimit(1)
                 }
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)
