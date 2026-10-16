@@ -98,7 +98,8 @@ final class MouseController: ObservableObject {
             guard let name = try? await device.name() else { continue }
             log.info("Found \(name) on \(transport.transportName), index \(index)")
             let isMXMaster = name.localizedCaseInsensitiveContains("MX Master")
-            if isMXMaster || (mouse == nil && (await device.supports(.adjustableDPI))) {
+            let isFallback = mouse == nil ? await device.supports(.adjustableDPI) : false
+            if isMXMaster || isFallback {
                 await use(device, name: name)
                 if isMXMaster { return }
             }
